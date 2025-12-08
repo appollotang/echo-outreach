@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EchoOutreach</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Custom Styles */
+        body { font-family: 'Inter', sans-serif; background-color: #FAFAFA; color: #111111; }
+        .echo-table th {
+            font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;
+            color: #666; border-bottom: 2px solid #E5E5E5; padding: 12px;
+        }
+        .echo-table td { padding: 16px 12px; border-bottom: 1px solid #F0F0F0; vertical-align: middle; }
+        .echo-table tr:hover { background-color: #F3F4F6; }
+        .loader {
+            border: 3px solid #f3f3f3; border-top: 3px solid #000; border-radius: 50%;
+            width: 20px; height: 20px; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <aside class="w-64 border-r border-gray-200 bg-white flex flex-col justify-between hidden md:flex">
+        <div class="p-8">
+            <h1 class="text-xl font-bold tracking-tight">EchoOutreach.</h1>
+            <p class="text-xs text-gray-400 mt-1">v1.0.0 (Beta)</p>
+            <nav class="mt-8 space-y-1">
+                <a href="#" onclick="switchView('discovery')" class="block px-4 py-3 rounded-md text-sm text-gray-700 font-bold bg-gray-50">Lead Discovery</a>
+                <a href="#" onclick="switchView('upgrade')" class="block px-4 py-3 rounded-md text-sm text-gray-700 hover:bg-gray-50">Upgrade Plan</a>
+            </nav>
+        </div>
+    </aside>
+
+    <main class="flex-1 overflow-y-auto bg-white relative">
+        
+        <div id="view-discovery" class="p-10 max-w-5xl mx-auto">
+            <div class="mb-10">
+                <h2 class="text-3xl font-bold tracking-tight mb-2">Find your next customer.</h2>
+                <p class="text-gray-500">Real-time search. AI scoring.</p>
+            </div>
+            <div class="flex gap-0 shadow-sm mb-12">
+                <input type="text" id="searchInput" placeholder="e.g. 'SaaS Founder'" 
+                    class="w-full p-4 border border-r-0 border-gray-300 rounded-l-md focus:outline-none focus:border-black font-mono text-sm">
+                <button onclick="runSearch()" class="bg-black text-white px-8 font-semibold text-sm rounded-r-md hover:bg-gray-800 transition-colors flex items-center gap-2">
+                    <span id="searchBtnText">SCAN</span>
+                    <div id="searchLoader" class="loader hidden"></div>
+                </button>
+            </div>
+            <div class="border border-gray-200 rounded-md overflow-hidden">
+                <table class="w-full echo-table text-left">
+                    <thead>
+                        <tr><th class="w-12"></th><th>Profile</th><th>Bio Snippet</th><th>Relevance</th></tr>
+                    </thead>
+                    <tbody id="resultsBody">
+                        <tr><td colspan="4" class="text-center py-20 text-gray-400">Enter a keyword to start.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="view-upgrade" class="p-10 max-w-4xl mx-auto hidden">
+            <h2 class="text-3xl font-bold mb-10">Upgrade Plan</h2>
+            <div class="border border-black bg-gray-50 p-8 rounded-lg relative overflow-hidden">
+                <h3 class="text-xl font-bold">Growth</h3>
+                <div class="text-4xl font-bold mt-4 mb-6">$29<span class="text-base font-normal text-gray-500">/mo</span></div>
+                <div id="paypal-button-container"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // *** PASTE YOUR GOOGLE APPS SCRIPT URL HERE ***
+        const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbxZdTWrJOwgmh2ejIzDhSY5tL6hZZi6aztaDOXEvUCNeAxN3UDVlXhqyRJcRvfnqDle/exec"; 
+
+        function switchView(view) {
+            document.getElementById('view-discovery').classList.add('hidden');
+            document.getElementById('view-upgrade').classList.add('hidden');
+            document.getElementById('view-' + view).classList.remove('hidden');
+        }
+
+        async function runSearch() {
+            const query = document.getElementById('searchInput').value;
+            if(!query) return;
+            
+            document.getElementById('searchBtnText').classList.add('hidden');
+            document.getElementById('searchLoader').classList.remove('hidden');
+
+            try {
+                const response = await fetch(GAS_ENDPOINT, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'search', query: query })
+                });
+                const data = await response.json();
+                renderTable(data);
+            } catch (error) {
+                alert("Search Error: Check GAS_ENDPOINT or Console");
+            } finally {
+                document.getElementById('searchBtnText').classList.remove('hidden');
+                document.getElementById('searchLoader').classList.add('hidden');
+            }
+        }
+
+        function renderTable(leads) {
+            const tbody = document.getElementById('resultsBody');
+            tbody.innerHTML = '';
+            leads.forEach(lead => {
+                const row = `<tr>
+                    <td><div class="h-8 w-8 bg-gray-200 rounded-full flex items-center justify-center text-xs font-bold">${lead.handle[0]}</div></td>
+                    <td><div class="font-bold text-sm">${lead.name}</div><div class="text-xs text-blue-600">@${lead.handle}</div></td>
+                    <td class="text-xs text-gray-500">${lead.bio}</td>
+                    <td><span class="px-2 py-1 rounded text-xs font-bold bg-green-100 text-green-800">${lead.score}%</span></td>
+                </tr>`;
+                tbody.insertAdjacentHTML('beforeend', row);
+            });
+        }
+    </script>
+</body>
+</html>
